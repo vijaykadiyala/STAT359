@@ -3,11 +3,11 @@ title: "Project 1"
 author: "Vijay Kadiyala"
 output: pdf_document
 ---
-```{r}
+```{r,echo=FALSE}
 #install.packages('BatchGetSymbols')
 ```
 
-```{r}
+```{r,echo=FALSE}
 downloadPriceDF <- function(stock, start = 2010, nyears = 1) {
     require(BatchGetSymbols)
     startdate <- paste(start, '01', '01', sep = '-')
@@ -19,10 +19,9 @@ downloadPriceDF <- function(stock, start = 2010, nyears = 1) {
                           price = out$df.tickers$price.adjusted)
     return(stockDF)
 }
-#downloadPriceDF('AAPL')
 ```
 
-```{r}
+```{r,echo=FALSE}
 #downloadPriceDF <- function(stock,start=2010,nyears=1){ #stock is a character string
   
 #  url <- paste0("http://finance.google.com/finance/historical?q=",stock,"&startdate=1-1-",start,"&enddate=12-31-",start+nyears-1,"&output=csv")
@@ -39,7 +38,7 @@ downloadPriceDF <- function(stock, start = 2010, nyears = 1) {
 #downloadPriceDF('AAPL')
 ```
 
-```{r}
+```{r,echo=FALSE}
 downloadStockPairDF <- function(stock1, stock2, start = 2010, nyears = 1){
   stock1DF <- downloadPriceDF(stock1, start = start, nyears = nyears)
   stock2DF <- downloadPriceDF(stock2, start = start, nyears = nyears)
@@ -51,12 +50,11 @@ downloadStockPairDF <- function(stock1, stock2, start = 2010, nyears = 1){
   names(stockpairDF) <- c("stock1",'stock2','ratio')
   return(stockpairDF)
 }
-#sodas <- downloadStockPairDF('KO','PEP',start=2015)
-#sodas
+
 ```
 
 
-```{r}
+```{r,echo=FALSE}
 plotStocks <- function(stockpairDF){
   par(mar = c(5,5,2,2))
   with(stockpairDF,plot(stock1,type='l',col='blue',ylab = 'Stock Price'))
@@ -70,7 +68,7 @@ plotStocks <- function(stockpairDF){
 ```
 
 
-```{r}
+```{r,echo=FALSE}
 plotRatio <- function(stockpairDF, k=1){
   par(mar = c(5,5,2,2))
   with(stockpairDF,plot(ratio,type='l',ylab='Ratio of Stock Prices'))
@@ -85,7 +83,7 @@ plotRatio <- function(stockpairDF, k=1){
 
 ##findPositions()
 
-```{r}
+```{r,echo=FALSE}
 #Finds the days to open.
 #Removes consecutive days from abovethreshold and belowthreshold. This way, we only have the first day that is above the threshold
 findopenpos <- function(x){ #Subfunction 1
@@ -102,7 +100,7 @@ findopenpos <- function(x){ #Subfunction 1
 ```
 
 
-```{r}
+```{r,echo=FALSE}
 aboveclose <- function(aboveopen,ratioinput,m){ #Subfunction 2: finds the close days for above opens
   closedlist <- c()
   belowmean <- which(ratioinput < m)
@@ -128,7 +126,7 @@ aboveclose <- function(aboveopen,ratioinput,m){ #Subfunction 2: finds the close 
 ```
 
 
-```{r}
+```{r,echo=FALSE}
 belowclose <- function(belowopen,ratioinput,m){ #Subfunction 3: Finds the close days for below opens
   belowclosevector <- c()
   abovemean <- which(ratioinput > m)
@@ -155,7 +153,7 @@ belowclose <- function(belowopen,ratioinput,m){ #Subfunction 3: Finds the close 
 ```
 
 
-```{r}
+```{r,echo=FALSE}
 #A function form of what we did above
 #The goal of this function is to turn our abovethreshold and belowthreshold vectors into our final open dates vectors.
 #This is done
@@ -171,12 +169,12 @@ openize <- function(openvec,closevec){ #Subfunction 4: Condenses opens (above an
   }
   return(finalopenvec)
 }
-#openize(c(1,41),c(28,48))
+
 ```
 
 
 
-```{r}
+```{r,echo=FALSE}
 listize <- function(openabove,closeabove,openbelow,closebelow){ #Subfunction 5: Makes the final output list
   abovelist <- list()
   if(is.null(openabove) && is.null(openbelow)){
@@ -202,7 +200,7 @@ listize <- function(openabove,closeabove,openbelow,closebelow){ #Subfunction 5: 
 ```
 
 
-```{r}
+```{r,echo=FALSE}
 #FindPositions complete function
 findPositions <- function(ratioinput,m,s,k=1){
   abovethreshold <- which(ratioinput>(m+k*s))
@@ -224,19 +222,11 @@ findPositions <- function(ratioinput,m,s,k=1){
 }
 ```
 
-```{r}
-#sodas
-#ratio2015 <- sodas00$ratio
-#mean <- mean(ratio2015)
-#sd <- sd(ratio2015)
 
-#positions <- findPositions(ratio2015,mean,sd,k=1)
-#positions
-```
 
 ##addpositions()
 
-```{r}
+```{r,echo=FALSE}
 
 addPositions <- function(ratio,positions){
   for (i in positions){
@@ -253,7 +243,7 @@ addPositions <- function(ratio,positions){
 ##positionProfit()
 
 
-```{r}
+```{r,echo=FALSE}
 positionProfit <- function(stocksDF, positionlist, net=TRUE){
   totalprofits <- c()
   for (i in positionlist){
@@ -279,7 +269,7 @@ positionProfit <- function(stocksDF, positionlist, net=TRUE){
 ##findOptimalK()
 
 
-```{r}
+```{r,echo=FALSE}
 findOptimalK <- function(stockDF, plot=FALSE){
   kmax <- (max(abs(stockDF$ratio-mean(stockDF$ratio)))/sd(stockDF$ratio))-0.00001
   kvalues <- seq(0,kmax,length=100)
@@ -318,7 +308,7 @@ findOptimalK(sodas00)
 ###evaluatePairsTrading()
 
 
-```{r}
+```{r,echo=FALSE}
 evaluatePairsTrading <- function(stocksDF, trainingFrac = 0.5, plot=FALSE){
   cutoff <- floor(nrow(stocksDF)*trainingFrac)
   training <- stocksDF[1:cutoff,]
@@ -327,9 +317,13 @@ evaluatePairsTrading <- function(stocksDF, trainingFrac = 0.5, plot=FALSE){
   trainingsd <- sd(training$ratio)
   k <- findOptimalK(training)
   pos <- findPositions(test$ratio,trainingmean,trainingsd,k)
+  if (plot){
+    plotRatio(stocksDF,k=k)
+    abline(v=cutoff)
+    addPositions(training$ratio,pos)
+  }
   return(positionProfit(test,pos))
 }
-
 ```
 
 ```{r}
@@ -339,7 +333,7 @@ evaluatePairsTrading(sodas00,trainingFrac=0.5,plot=TRUE)
 
 ##Lecture 7
 
-```{r}
+```{r,echo=FALSE}
 simulateStockPair<- function(n=1000, sigma1=1, sigma2=1, rho=1, psi=0, b1=0, b2=0, plot=FALSE) {
   x1 <- 1:n
   x2 <- 1:n
@@ -368,7 +362,7 @@ simulateStockPair<- function(n=1000, sigma1=1, sigma2=1, rho=1, psi=0, b1=0, b2=
 
 #Lecture 8
 
-```{r}
+```{r,echo=FALSE}
 simulateDistribution <- function(nrep = 100, returnCorrelation = FALSE, ...) {
   returnvec <- 1:nrep
   if(returnCorrelation){
@@ -401,7 +395,7 @@ mean(simulateDistribution(nrep=10,returnCorrelation = TRUE,psi=0.9))
 
 ##Deliverable 1
 
-```{R}
+```{r}
 cars <- downloadStockPairDF('F','GM',start=2012,nyears=3)
 plotStocks(cars)
 plotRatio(cars)
@@ -439,11 +433,31 @@ positionProfit(cars,positoptimalK)
 ##Deliverable 5
 
 ```{r}
-techandcars <- downloadStockPairDF('TSLA','DG',start=2012,nyears=1)
+techandcars <- downloadStockPairDF('TSLA','KO',start=2012,nyears=1)
 cor(techandcars$stock1,techandcars$stock2)
-evaluatePairsTrading(techandcars)
 findOptimalK(techandcars,plot=TRUE)
+evaluatePairsTrading(techandcars)
 ```
+
+Coca-Cola and Tesla are slightly negatively correlated (-0.13). If we use all the data, the optimal K value is 0.83, which would correspond to a profit of about 90%. If we use 'evaluatePairsTrading' with a training fraction of 0.5, then the profit is about 20%.
+
+```{r}
+deliv5_2 <- downloadStockPairDF('HD','L',start=2012,nyears=1)
+cor(deliv5_2$stock1,deliv5_2$stock2)
+findOptimalK(deliv5_2,plot=TRUE)
+evaluatePairsTrading(deliv5_2)
+```
+
+The Home Depot and Loews stock are highly correlated (0.84). In using all the data, the optimal K is 1.91, which would yield a profit of about 25%. Using 'evaluatePairstrading', the profit on the test data is -18.5%. Highly correlated stocks move together, so this negative profit can be attributed to 
+
+```{r}
+deliv5_3 <- downloadStockPairDF('PEP','TIF',start=2012,nyears=1)
+cor(deliv5_3$stock1,deliv5_3$stock2)
+findOptimalK(deliv5_3,plot=TRUE)
+evaluatePairsTrading(deliv5_3)
+```
+
+The stocks of Pepsi and Tiffany's are negatively correlated (-0.5). The optimal K of 1.74 yields a profit of about 45% and the test data yields a profit of around 25%. 
 
 ##Deliverable 6
 
@@ -472,17 +486,78 @@ sd(distcorr)/sqrt(1000)
 
 ```
 
+
+
 ##Deliverable 7
 
 ```{r}
 rhoex <- seq(0, 1, length = 10)
 psiex <- seq(-1, 1, length = 10)
-
 xy <- expand.grid(x = rhoex, y = psiex)
 
-xy$x
+result = numeric(100)
+for (i in 1:length(xy$x)){
+  result[i] = mean(simulateDistribution(nrep=30,returnCorrelation = TRUE,rho=xy$x[i],psi=xy$y[i]))
+}
+resulframe <- data.frame(xy$x,xy$y,result)
+names(resulframe) <- c('rho','psi','avg_correlation')
 
 ```
+
+```{r}
+library(ggplot2)
+ggplot(resulframe, aes(x = rho, y = psi, fill = avg_correlation)) +
+    geom_tile() +
+        scale_fill_gradient2(low = "red", mid = "white", high = "blue")
+```
+
+##Deliverable 8
+
+```{r}
+result2 = numeric(100)
+for (i in 1:length(xy$x)){
+  result2[i] = median(simulateDistribution(nrep=10,returnCorrelation = FALSE,rho=xy$x[i],psi=xy$y[i]))
+}
+resulframe2 <- data.frame(xy$x,xy$y,result2)
+names(resulframe2) <- c('rho','psi','med_profit')
+```
+
+
+```{r}
+library(ggplot2)
+ggplot(resulframe2, aes(x = rho, y = psi, fill = med_profit)) +
+    geom_tile() +
+        scale_fill_gradient2(low = "red", mid = "white", high = "blue")
+```
+
+
+##Deliverable 9
+
+```{r}
+result3 <- numeric(25)
+sigma2values <- seq(0,10,length=25)
+for (i in 1: length(sigma2values)){
+  result3[i] <- median(simulateDistribution(nrep=8,returnCorrelation = FALSE,sigma2 = sigma2values[i]))
+}
+plot(sigma2values,result3)
+```
+
+I examined how changes in sigma2 affect median profits. The above graph displays median profit against the value of sigma2. I allowed sigma 2 to vary from 0 to 10, and for the most part, it seems that the median profit is consistent (disregarding the one outlier). We do see a little fanning, though, as higher sigma2 leads to more variability in the median profit.
+
+```{r}
+result4 <- numeric(25)
+sigma2values2 <- seq(0,150,length=25)
+for (i in 1: length(sigma2values2)){
+  result4[i] <- median(simulateDistribution(nrep=8,returnCorrelation = FALSE,sigma2 = sigma2values2[i]))
+}
+plot(sigma2values2,result4)
+```
+
+I then repeated this process with a range of sigma2 values from 0 to 150. The results are more spread out. However, there is no definitive trend of an increase in median profit with an increase in sigma2. This is to be expected, as the error term (epsilon) that is affected by sigma2 is constantly centered around 0. Thus, even with high variability, we would expect the median of our error terms -- and hence the median of our profit -- to be somewhat constant. 
+
+##Deliverable 10
+
+From Deliverable 8, we see that 
 
 
 #Extensions
@@ -537,10 +612,8 @@ findOptimalKv2 <- function(stockDF, plot=FALSE){
 ```
 
 ```{r}
-#sodasextension <- downloadStockPairDF('PEP','KO',start=2012,nyears=3)
 system.time(findOptimalK(cars))
 system.time(findOptimalKv2(cars))
-#findOptimalK(sodasextension,plot=TRUE)
 optiK <- findOptimalK(cars)
 optiK
 positionProfit(cars,findPositions(carsratio,carsmean,carssd,k=optiK))
@@ -584,9 +657,7 @@ If we make the resolution smaller, we see that a resolution of 85 yields about t
 
 ##Extension 3
 
-We want to make a more precise training method. Before, `evaluatePairsTrading` would use a set fraction to mark training and test data. Instead, we will make a constantly growing training data set. 
-
-Essentially, we are trying to find which value of trainingFraction will yield the highest profit. 12%? or 80%. At low percent, don't have enough data. At high percent, not enough test data. 
+We want to make a more precise training method. Before, `evaluatePairsTrading` would use a set fraction to mark training and test data. Instead, we will make a constantly growing training data set. Essentially, we are trying to find which value of trainingFraction will yield the highest profit. 
 
 
 
@@ -610,3 +681,51 @@ evalTrainpercentage <- function(stockDF,plot=FALSE){
 head(evalTrainpercentage(cars,plot=TRUE))
 ```
 
+##Extension 4
+
+Accounting for volatility in previous 30 days' returns as an input to the simulation.
+
+```{r}
+simulateStockPairnew<- function(n=1000, sigma1=1, sigma2=1, rho=1, psi=0, plot=FALSE) {
+  x1 <- 1:n
+  x2 <- 1:n
+  y1<- 1:n
+  y2 <- 1:n
+  
+  for (i in 2:n){
+    x1[i] <- rho*x1[i-1] + (1-rho)*psi *x2[i-1] + rnorm(1,0,sigma1)
+    x2[i] <- rho*x2[i-1] + (1-rho)*psi*x1[i-1]+rnorm(1,0,sigma2)
+  }
+  y1 <- 40 + x1
+  y2 <- 45 + x2
+  
+  for (i in 31:length(y1)){
+    x1[i] <- var(y1[i-30:i])+ x1[i]
+    x2[i] <- var(y2[i-30:i])+ x2[i]
+  }
+  x1[31] <- rho*x1[30] + (1-rho)*psi *x2[30] + rnorm(1,0,sigma1)
+  x2[31] <- rho*x2[30] + (1-rho)*psi *x2[30] + rnorm(1,0,sigma1)
+  y1 <- 40 + x1
+  y2 <- 45 + x2
+  
+  ratiosimul <- y1/y2
+  stocks <- data.frame(y1,y2,ratiosimul)
+  names(stocks) <- c('stock1','stock2','ratio')
+  if (plot){
+    plotStocks(stocks)
+  }
+  return(stocks)
+}
+simulold <- simulateStockPair(n=500,psi=0.3,rho=0.5)
+simulnew <- simulateStockPairnew(n=500,psi=0.3,rho=0.5)
+
+```
+
+```{r}
+evaluatePairsTrading(simulold)
+evaluatePairsTrading(simulnew)
+```
+
+I believe that the variance of past returns may have an impact on the price of a stock. Potentially, 'bad stocks' have a high variance and 'good stocks' have a low variance. Furthermore, fundamental market shifts may cause temporary fluctuations in stock prices. Measuring the variance of the previous 30 days allows us to simulate such price responses to the market. 
+
+Both `evaluatePairsTrading` and 'findOptimalK' show that the profit realized from the pairs trading approach is diminished slightly with the new simulation. This can be attributed to how the inclusion of the variance term increases the variance of our results. 
