@@ -1,0 +1,573 @@
+---
+title: "Project 1"
+author: "Vijay Kadiyala"
+output: pdf_document
+---
+```{r}
+#install.packages('BatchGetSymbols')
+```
+
+```{r}
+downloadPriceDF <- function(stock, start = 2010, nyears = 1) {
+    require(BatchGetSymbols)
+    startdate <- paste(start, '01', '01', sep = '-')
+    enddate <- paste(start+nyears, '01', '01', sep = '-')
+    out <- suppressMessages(BatchGetSymbols(tickers = stock, first.date = startdate, last.date = enddate))
+    cat('\n')
+    if(out$df.control$download.status != 'OK') stop(paste0('something went wrong downloading ', stock, 'prices'))
+    stockDF <- data.frame(date = as.character(out$df.tickers$ref.date),
+                          price = out$df.tickers$price.adjusted)
+    return(stockDF)
+}
+#downloadPriceDF('AAPL')
+```
+
+```{r}
+#downloadPriceDF <- function(stock,start=2010,nyears=1){ #stock is a character string
+  
+#  url <- paste0("http://finance.google.com/finance/historical?q=",stock,"&startdate=1-1-",start,"&enddate=12-31-",start+nyears-1,"&output=csv")
+  
+#  filename <- "~/Desktop/stocks.csv"
+  
+ # download.file(url,filename)
+  
+  #stocksDF <- read.csv(filename,stringsAsFactors = FALSE)
+  #stocksDF <- stocksDF[,c(1,5)]
+  #stocksDF <- stocksDF[nrow(stocksDF):1,]
+  #return(stocksDF)
+#}
+#downloadPriceDF('AAPL')
+```
+
+```{r}
+downloadStockPairDF <- function(stock1, stock2, start = 2010, nyears = 1){
+  stock1DF <- downloadPriceDF(stock1, start = start, nyears = nyears)
+  stock2DF <- downloadPriceDF(stock2, start = start, nyears = nyears)
+  if (identical(stock1DF$date,stock2DF$date) == FALSE){
+    stop("Unequal number of dates")
+  }
+  stockratio <- (stock1DF$price)/(stock2DF$price)
+  stockpairDF <- data.frame(stock1DF$price,stock2DF$price,stockratio)
+  names(stockpairDF) <- c("stock1",'stock2','ratio')
+  return(stockpairDF)
+}
+#sodas <- downloadStockPairDF('KO','PEP',start=2015)
+#sodas
+```
+
+
+```{r}
+plotStocks <- function(stockpairDF){
+  par(mar = c(5,5,2,2))
+  with(stockpairDF,plot(stock1,type='l',col='blue',ylab = 'Stock Price'))
+  par(new=TRUE)
+  with(stockpairDF, plot(stock2, type = 'l', col = 'red3',pch=16, axes=F, xlab=NA, ylab=NA, cex=1.2))
+  legend('bottomleft',legend = c('stock1','stock2'),col = c("blue",'red3'),lty=1, cex=0.8)
+}
+
+#plotStocks(sodas)
+
+```
+
+
+```{r}
+plotRatio <- function(stockpairDF, k=1){
+  par(mar = c(5,5,2,2))
+  with(stockpairDF,plot(ratio,type='l',ylab='Ratio of Stock Prices'))
+  with(stockpairDF,abline(h=mean(ratio),col='red3'))
+  with(stockpairDF,abline(h=mean(ratio)+k*sd(ratio),col='green'))
+  with(stockpairDF,abline(h=mean(ratio)-k*sd(ratio),col='green'))
+}
+#plotRatio(sodas,k=1)
+```
+
+#Lecture 3
+
+##findPositions()
+
+```{r}
+#Finds the days to open.
+#Removes consecutive days from abovethreshold and belowthreshold. This way, we only have the first day that is above the threshold
+findopenpos <- function(x){ #Subfunction 1
+  repeatlist <- c()
+  for (i in x){
+  if ((i-1) %in% x){
+    repeatlist <- append(repeatlist,i)
+    }
+  }
+  x <- x[!x %in% repeatlist]
+  return(x)
+}
+
+```
+
+
+```{r}
+aboveclose <- function(aboveopen,ratioinput,m){ #Subfunction 2: finds the close days for above opens
+  closedlist <- c()
+  belowmean <- which(ratioinput < m)
+  if (length(aboveopen)==0){
+    return(NULL)
+  }
+  suppressWarnings(
+  for(i in aboveopen){
+    closedlist <- append(closedlist,min(belowmean[which(belowmean>i)]))
+#    specificlessthanmean <- belowmean[belowmean>i]
+#    close <- min(specificlessthanmean)
+#    closedlist <- append(closedlist,close)
+  }
+  )
+  closedays <- unique(closedlist)
+  for (i in 1:length(closedays)){
+    if (closedays[i] == Inf){
+      closedays[i] = length(ratioinput)
+    }
+  }
+  return(closedays)
+}
+```
+
+
+```{r}
+belowclose <- function(belowopen,ratioinput,m){ #Subfunction 3: Finds the close days for below opens
+  belowclosevector <- c()
+  abovemean <- which(ratioinput > m)
+  if(length(belowopen)==0){
+    return(NULL)
+  }
+  suppressWarnings(
+  for(i in belowopen){
+    belowclosevector <- append(belowclosevector,min(abovemean[which(abovemean>i)]))
+#    belowclosevector <- append(belowclosevector,abovemean[min(which(abovemean>i))])
+#    specificmorethanmean <- abovemean[abovemean>i]
+#   closeabove <- min(specificmorethanmean)
+#  belowclosevector <- append(belowclosevector,closeabove)
+  }
+  )
+  belowclosevector <- unique(belowclosevector)
+  for (i in 1:length(belowclosevector)){
+    if (belowclosevector[i] == Inf){
+      belowclosevector[i] = length(ratioinput)
+    }
+  }
+  return(belowclosevector)
+}
+```
+
+
+```{r}
+#A function form of what we did above
+#The goal of this function is to turn our abovethreshold and belowthreshold vectors into our final open dates vectors.
+#This is done
+library(dplyr)
+openize <- function(openvec,closevec){ #Subfunction 4: Condenses opens (above and below) to match with closes
+  finalopenvec <- c()
+  opener <- openvec
+  closer <- closevec
+  for (i in closer){
+    matches <- opener[which(between(opener,opener[1],i))]
+    finalopenvec <- append(finalopenvec,matches[1])
+    opener <- opener[!opener %in% matches]
+  }
+  return(finalopenvec)
+}
+#openize(c(1,41),c(28,48))
+```
+
+
+
+```{r}
+listize <- function(openabove,closeabove,openbelow,closebelow){ #Subfunction 5: Makes the final output list
+  abovelist <- list()
+  if(is.null(openabove) && is.null(openbelow)){
+    return(abovelist)
+  }
+  for (i in 1:length(openabove)){
+    if(length(openabove) != 0){
+      abovelist[[i]] <- c(openabove[i],closeabove[i],1)
+    }
+    else{next}
+  }
+  belowlist <- list()
+  if(length(openbelow) != 0){
+    for (i in 1:length(openbelow)){
+      belowlist[[i]] <- c(openbelow[i],closebelow[i],-1)
+    }
+  }
+  else{return(abovelist)}
+  opencloselist <- append(abovelist,belowlist)
+  return(opencloselist)
+}
+
+```
+
+
+```{r}
+#FindPositions complete function
+findPositions <- function(ratioinput,m,s,k=1){
+  abovethreshold <- which(ratioinput>(m+k*s))
+  if (length(abovethreshold)==0){
+    abovethreshold <- NULL
+  }
+  belowthreshold <- which(ratioinput<(m-k*s))
+  if (length(belowthreshold)==0){
+    belowthreshold <- NULL
+  }
+  aboveopen <- findopenpos(abovethreshold) 
+  belowopen <- findopenpos(belowthreshold)
+  abovecloser <- aboveclose(aboveopen,ratioinput,m)
+  belowcloser <- belowclose(belowopen,ratioinput,m)
+  aboveopen <- openize(aboveopen,abovecloser)
+  belowopen <- openize(belowopen,belowcloser)
+  openclose <- listize(aboveopen,abovecloser,belowopen,belowcloser)
+  return(openclose)
+}
+```
+
+```{r}
+#sodas
+#ratio2015 <- sodas00$ratio
+#mean <- mean(ratio2015)
+#sd <- sd(ratio2015)
+
+#positions <- findPositions(ratio2015,mean,sd,k=1)
+#positions
+```
+
+##addpositions()
+
+```{r}
+
+addPositions <- function(ratio,positions){
+  for (i in positions){
+    points(i[1],ratio[i[1]],col='blue',pch=19)
+    points(i[2],ratio[i[2]],col='green',pch=19)
+  }
+}
+
+```
+
+
+#Lecture 4
+
+##positionProfit()
+
+
+```{r}
+positionProfit <- function(stocksDF, positionlist, net=TRUE){
+  totalprofits <- c()
+  for (i in positionlist){
+    shares1 <- 1/stocksDF$stock1[i[1]]
+    shares2 <- 1/stocksDF$stock2[i[1]]
+    profit1 <- -1*i[3] * shares1 * stocksDF$stock1[i[2]]
+    profit2 <- i[3]* shares2 * stocksDF$stock2[i[2]]
+    fees <- 0.003 * (1 + 1 + abs(profit1) + abs(profit2))
+    netprofit <- profit1+profit2-fees
+    totalprofits <- append(totalprofits,netprofit)
+  }
+  if (net){
+    return(sum(totalprofits))
+  }
+  else{
+    return(totalprofits)
+  }
+}
+```
+
+#Lecture 5
+
+##findOptimalK()
+
+
+```{r}
+findOptimalK <- function(stockDF, plot=FALSE){
+  kmax <- (max(abs(stockDF$ratio-mean(stockDF$ratio)))/sd(stockDF$ratio))-0.00001
+  kvalues <- seq(0,kmax,length=100)
+  profits <- c()
+  for (i in kvalues){
+    position<-findPositions(stockDF$ratio,mean(stockDF$ratio),sd(stockDF$ratio),i)
+    profit <- positionProfit(stockDF,position,net=TRUE)
+    profits <- append(profits,profit)
+  }
+  optimalK <- kvalues[match(max(profits),profits)]
+  if(plot){
+    profitplot <- plot(kvalues,profits)
+    print(profitplot)
+    points(optimalK,max(profits),col='red3',pch=19)
+  }
+  return(optimalK)
+}
+```
+
+
+
+```{r}
+sodas00 <- downloadStockPairDF("KO", "PEP", 2015, nyears = 1)
+ratio00 <- sodas00$ratio
+mean00 <- mean(ratio00)
+sd00 <- sd(ratio00)
+
+post <- findPositions(ratio00,mean00,sd00,k=1.4)
+plotRatio(sodas00,k=1.4)
+addPositions(ratio00,post)
+findOptimalK(sodas00)
+```
+
+##Lecture 6
+
+###evaluatePairsTrading()
+
+
+```{r}
+evaluatePairsTrading <- function(stocksDF, trainingFrac = 0.5, plot=FALSE){
+  cutoff <- floor(nrow(stocksDF)*trainingFrac)
+  training <- stocksDF[1:cutoff,]
+  test <- stocksDF[(cutoff+1):nrow(stocksDF),]
+  trainingmean <- mean(training$ratio)
+  trainingsd <- sd(training$ratio)
+  k <- findOptimalK(training)
+  pos <- findPositions(test$ratio,trainingmean,trainingsd,k)
+  return(positionProfit(test,pos))
+}
+
+```
+
+```{r}
+evaluatePairsTrading(sodas00,trainingFrac=0.5,plot=TRUE)
+```
+
+
+##Lecture 7
+
+```{r}
+simulateStockPair<- function(n=1000, sigma1=1, sigma2=1, rho=1, psi=0, b1=0, b2=0, plot=FALSE) {
+  x1 <- 1:n
+  x2 <- 1:n
+  y1<- 1:n
+  y2 <- 1:n
+  
+  for (i in 2:n){
+    x1[i] <- rho*x1[i-1] + (1-rho)*psi *x2[i-1] + rnorm(1,0,sigma1)
+    x2[i] <- rho*x2[i-1] + (1-rho)*psi*x1[i-1]+rnorm(1,0,sigma2)
+  }
+  for (i in 1:n){
+    y1[i] <- 40 + b1*i + x1[i]
+    y2[i] <- 45 + b2*i + x2[i]
+  }
+  ratiosimul <- y1/y2
+  stocks <- data.frame(y1,y2,ratiosimul)
+  names(stocks) <- c('stock1','stock2','ratio')
+  if (plot){
+    plotStocks(stocks)
+  }
+  return(stocks)
+}
+```
+
+#Lecture 8
+
+```{r}
+simulateDistribution <- function(nrep = 100, returnCorrelation = FALSE, ...) {
+  returnvec <- 1:nrep
+  if(returnCorrelation){
+    for (i in 1:nrep){
+      stock <- simulateStockPair(...)
+      corr <- cor(stock$stock1,stock$stock2)
+      returnvec[i] <- corr
+    }
+  }
+  if(!returnCorrelation){
+    for (i in 1:nrep){
+      stock <- simulateStockPair(...)
+      ratio <- stock$ratio
+      k <- findOptimalK(stock)
+      posit <- findPositions(ratio,mean(ratio),sd(ratio),k)
+      netprofit <- positionProfit(stock,posit)
+      returnvec[i] <- netprofit
+    }
+  }
+  return(returnvec)
+}
+```
+
+
+#Deliverables
+
+##Deliverable 1
+
+```{R}
+cars <- downloadStockPairDF('F','GM',start=2012,nyears=3)
+plotStocks(cars)
+plotRatio(cars)
+```
+
+##Deliverable 2
+
+```{r}
+carsratio <- cars$ratio
+carsmean <- mean(carsratio)
+carssd <- sd(carsratio)
+carspost <- findPositions(carsratio,carsmean,carssd)
+plotRatio(cars)
+addPositions(carsratio,carspost)
+```
+
+##Deliverable 3
+
+```{r}
+positionProfit(cars,carspost,net=FALSE)
+positionProfit(cars,carspost)
+```
+
+##Deliverable 4
+
+```{r}
+optimalK <- findOptimalK(cars)
+positoptimalK <- findPositions(carsratio,carsmean,carssd,k=optimalK)
+plotRatio(cars,k=optimalK)
+addPositions(carsratio,positoptimalK)
+findOptimalK(cars,plot = TRUE)
+positionProfit(cars,positoptimalK)
+```
+
+##Deliverable 5
+
+```{r}
+techandcars <- downloadStockPairDF('TSLA','DG',start=2012,nyears=1)
+cor(techandcars$stock1,techandcars$stock2)
+evaluatePairsTrading(techandcars)
+findOptimalK(techandcars,plot=TRUE)
+```
+
+##Deliverable 6
+
+```{r}
+simulateDistribution(nrep=1000,)
+```
+
+
+#Extensions
+
+##Extension 1
+
+In this extension, I extend the pairs trading approach to 3 stocks. I find the three ratios between the three stocks, and then evaluate each one to see which generates the greatest profit. We'll use the evaluatepairsTraiding function to evaluate.
+
+```{r,message=FALSE}
+evaluateTriplet <- function(stock1,stock2,stock3,start,nyears,trainingfrac){
+  stockdf1 <- downloadStockPairDF(stock1,stock2,start = start,nyears = nyears)
+  stockdf2 <- downloadStockPairDF(stock2,stock3, start=start,nyears=nyears)
+  stockdf3 <- downloadStockPairDF(stock1, stock3, start=start, nyears=nyears)
+  return1 <- evaluatePairsTrading(stockdf1,trainingFrac = trainingfrac,plot=FALSE)
+  return2 <- evaluatePairsTrading(stockdf2,trainingFrac = trainingfrac,plot=FALSE)
+  return3 <- evaluatePairsTrading(stockdf3,trainingFrac = trainingfrac,plot=FALSE)
+  if (max(return1,return2,return3) == return1){
+    return(c(return1,stock1,stock2))
+  }
+  if (max(return1,return2,return3) == return2){
+    return(c(return2,stock2,stock3))
+  }
+  if (max(return1,return2,return3) == return3){
+    return(c(return3,stock1,stock3))
+  }
+}
+evaluateTriplet('KO','PEP','TSLA',2015,1,0.5)
+```
+
+##Extension 2
+
+Here we evaluate what changes in the resolution of findOptimalK do to operating time and profit.
+
+```{r}
+findOptimalKv2 <- function(stockDF, plot=FALSE){
+  kmax <- (max(abs(stockDF$ratio-mean(stockDF$ratio)))/sd(stockDF$ratio))-0.00001
+  kvalues <- seq(0,kmax,length=10000)
+  profits <- c()
+  for (i in kvalues){
+    position<-findPositions(stockDF$ratio,mean(stockDF$ratio),sd(stockDF$ratio),i)
+    profit <- positionProfit(stockDF,position,net=TRUE)
+    profits <- append(profits,profit)
+  }
+  optimalK <- kvalues[match(max(profits),profits)]
+  if(plot){
+    profitplot <- plot(kvalues,profits)
+    print(profitplot)
+    points(optimalK,max(profits),col='red3',pch=19)
+  }
+  return(optimalK)
+}
+```
+
+```{r}
+#sodasextension <- downloadStockPairDF('PEP','KO',start=2012,nyears=3)
+system.time(findOptimalK(cars))
+system.time(findOptimalKv2(cars))
+#findOptimalK(sodasextension,plot=TRUE)
+optiK <- findOptimalK(cars)
+optiK
+positionProfit(cars,findPositions(carsratio,carsmean,carssd,k=optiK))
+optimalKv2 <- findOptimalKv2(cars)
+optimalKv2
+positionProfit(cars,findPositions(carsratio,carsmean,carssd,k=optimalKv2))
+```
+
+
+The first system time output is for our original `findOptimalK()` function with a resolution of 100. At such a resolution, our max profit on the training data would be 102%. The second system time output is for a `findOptimalK()` function with a resolution of 10000. As the output shows, such a process leads to an elapsed time about 130 times greater than before. However, our optimal K value has not changed significantly, and the max profit has not changed at all. Thus, it seems that increasing the resolution, whether to 200 or 10000 has no real effect on the max profit realized. I also tested changing the resolution with test data of varying lengths -- for example, of stock data from 1 year to 10 years in length. The same result occurred: higher resolutions had no large effect on max profit. 
+
+```{r}
+findOptimalKv3 <- function(stockDF, plot=FALSE){
+  kmax <- (max(abs(stockDF$ratio-mean(stockDF$ratio)))/sd(stockDF$ratio))-0.00001
+  kvalues <- seq(0,kmax,length=85)
+  profits <- c()
+  for (i in kvalues){
+    position<-findPositions(stockDF$ratio,mean(stockDF$ratio),sd(stockDF$ratio),i)
+    profit <- positionProfit(stockDF,position,net=TRUE)
+    profits <- append(profits,profit)
+  }
+  optimalK <- kvalues[match(max(profits),profits)]
+  if(plot){
+    profitplot <- plot(kvalues,profits)
+    print(profitplot)
+    points(optimalK,max(profits),col='red3',pch=19)
+  }
+  return(optimalK)
+}
+system.time(findOptimalK(cars))
+system.time(findOptimalKv3(cars))
+optiK <- findOptimalK(cars)
+optiK
+positionProfit(cars,findPositions(carsratio,carsmean,carssd,k=optiK))
+optimalKv3 <- findOptimalKv3(cars)
+optimalKv3
+positionProfit(cars,findPositions(carsratio,carsmean,carssd,k=optimalKv3))
+```
+
+If we make the resolution smaller, we see that a resolution of 85 yields about the same results as the function with resolution of 100. Any lower than that, and we see a dip in the performance. This was again verified at different lengths of stock data. I conclude that a resolution of 85 to 100 gives the most precise answers at a reasonable speed. 
+
+##Extension 3
+
+We want to make a more precise training method. Before, `evaluatePairsTrading` would use a set fraction to mark training and test data. Instead, we will make a constantly growing training data set. 
+
+Essentially, we are trying to find which value of trainingFraction will yield the highest profit. 12%? or 80%. At low percent, don't have enough data. At high percent, not enough test data. 
+
+
+
+```{r}
+evalTrainpercentage <- function(stockDF,plot=FALSE){
+  exdf <- data.frame(NA,NA)
+  names(exdf) <- c('cutoff percent','calculated profit')
+  cutoffpercent <- seq(0.05,1,length=100)
+  for (i in cutoffpercent){
+    vala <- evaluatePairsTrading(stockDF,trainingFrac=i)
+    exde <- data.frame(i,vala)
+    names(exde) <- c('cutoff percent','calculated profit')
+    exdf <- rbind(exdf,exde)
+    }
+  exdf <- exdf[2:nrow(exdf),]
+  if (plot){
+    plot(exdf$`cutoff percent`,exdf$`calculated profit`)
+  }
+  return(exdf)
+}
+head(evalTrainpercentage(cars,plot=TRUE))
+```
+
