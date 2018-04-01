@@ -364,6 +364,8 @@ simulateStockPair<- function(n=1000, sigma1=1, sigma2=1, rho=1, psi=0, b1=0, b2=
 }
 ```
 
+
+
 #Lecture 8
 
 ```{r}
@@ -388,6 +390,10 @@ simulateDistribution <- function(nrep = 100, returnCorrelation = FALSE, ...) {
   }
   return(returnvec)
 }
+```
+
+```{r}
+mean(simulateDistribution(nrep=10,returnCorrelation = TRUE,psi=0.9))
 ```
 
 
@@ -442,7 +448,40 @@ findOptimalK(techandcars,plot=TRUE)
 ##Deliverable 6
 
 ```{r}
-simulateDistribution(nrep=1000,)
+dist <- simulateDistribution(nrep=1000,sigma1=1,sigma2=1,rho=0.9,psi=0.9)
+```
+
+```{r}
+distcorr <- simulateDistribution(nrep=1000,sigma1=1,sigma2=1,rho=0.9,psi=0.9,returnCorrelation = TRUE)
+```
+
+Mean profit: 
+
+```{r}
+mean(dist)
+t.test(dist)[4]
+sd(dist)/sqrt(1000)
+```
+
+Mean correlation:
+
+```{r}
+mean(distcorr)
+t.test(distcorr)[4]
+sd(distcorr)/sqrt(1000)
+
+```
+
+##Deliverable 7
+
+```{r}
+rhoex <- seq(0, 1, length = 10)
+psiex <- seq(-1, 1, length = 10)
+
+xy <- expand.grid(x = rhoex, y = psiex)
+
+xy$x
+
 ```
 
 
