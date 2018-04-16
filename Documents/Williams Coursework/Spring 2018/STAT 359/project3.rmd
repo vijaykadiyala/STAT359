@@ -1,0 +1,215 @@
+---
+title: "Factbook Project"
+author: "Vijay Kadiyala"
+output: pdf_document
+---
+
+```{r,warning=FALSE}
+library(XML)
+```
+
+```{r}
+xmlfactbook <- xmlParse("factbook.xml")
+```
+
+#Homework Questions
+
+##Homework 1
+
+####Question 1
+
+```{r}
+infantmortality <- getNodeSet(xmlfactbook,'//field[@id="f2091"]/rank')
+```
+
+
+```{r}
+countryvec <- NULL
+mortality <- NULL
+for (i in infantmortality){
+  country <- xmlGetAttr(i,"country")
+  countryvec <- append(countryvec,country)
+}
+for (i in infantmortality){
+  mort <- xmlGetAttr(i,"number")
+  mort <- as.numeric(mort)
+  mortality <- append(mortality,mort)
+}
+infantmortalityDF <- data.frame(countryvec,mortality,stringsAsFactors = FALSE)
+names(infantmortalityDF) <- c("cia","mortality rate")
+#infantmortalityDF
+```
+
+
+####Question 2
+
+```{r}
+population <- getNodeSet(xmlfactbook,'//field[@id="f2119"]/rank')
+#population
+```
+
+```{r}
+popvec <- NULL
+popcountryvec <- NULL
+for (i in population){
+  cnt <- xmlGetAttr(i,"country")
+  popcountryvec <- append(popcountryvec,cnt)
+}
+for (i in population){
+  pop <- xmlGetAttr(i,"number")
+  pop <- as.numeric(pop)
+  popvec <- append(popvec,pop)
+}
+populationDF <- data.frame(popcountryvec,popvec,stringsAsFactors = FALSE)
+names(populationDF) <- c("cia", "population")
+#populationDF
+```
+
+##Homework 2
+
+####Question 1
+
+```{r}
+countrynames <- getNodeSet(xmlfactbook,'//appendix[@name="cross-reference list of country data codes"]//row')
+cianames <- sapply(countrynames,function(x) xmlChildren(x)[1]$cell)
+countryvec <- sapply(cianames,function(x) xmlGetAttr(x,"content"))
+ciacode <- sapply(cianames,function(x) xmlGetAttr(x, "country"))
+isocode <- sapply(countrynames,function(x) xmlGetAttr(xmlChildren(x)[3]$cell,"content"))
+countryDF <- data.frame(countryvec,ciacode,isocode)
+names(countryDF) <- c("country", "cia", "iso3166")
+#countryDF
+```
+
+##Homework 3
+
+```{r}
+geocsv <- read.csv('countries_codes_and_coordinates.csv',stringsAsFactors = FALSE)
+```
+
+
+```{r}
+geocsv <- geocsv[order(geocsv$Numeric.code),]
+geocsv <- geocsv[!duplicated(geocsv$Numeric.code),]
+geocsv$Alpha.2.code <- gsub(" ", "",geocsv$Alpha.2.code)
+names(geocsv)[2] <- "iso3166"
+#geocsv
+```
+
+##Homework 4
+
+```{r}
+library(dplyr)
+homework4DF <- suppressWarnings(geocsv %>% inner_join(countryDF) %>% inner_join(populationDF) %>% inner_join(infantmortalityDF))
+homework4DF <- homework4DF[c(7,2,8,9,10,5,6)]
+#homework4DF
+
+```
+
+
+#Deliverables
+
+####Deliverable 1
+
+```{r}
+hist(infantmortalityDF$`mortality rate`)
+```
+
+The distributon of infant mortality rates is right skewed. The majority of mortality rates seem to fall below 30, and very many countries have rates less than 10. There are a few countries with rates greater than 80. 
+
+####Deliverable 2
+
+```{r}
+countryDF[countryDF$country == "Tajikistan",]
+```
+
+####Deliverable 3
+
+a. 
+
+```{r}
+oldcsv <- read.csv('countries_codes_and_coordinates.csv',stringsAsFactors = FALSE)
+#oldcsv[order(oldcsv$Numeric.code),]
+#oldcsv[oldcsv$Numeric.code %in% which(duplicated(oldcsv$Numeric.code)),]
+#which(duplicated(oldcsv$Numeric.code))
+#oldcsv[duplicated(oldcsv$Numeric.code),]
+oldcsv[duplicated(oldcsv$Numeric.code),]
+```
+
+b. 
+
+```{r}
+nrow(geocsv)
+```
+
+####Deliverable 4
+
+
+
+
+####Deliverable 5
+
+```{r}
+library(dplyr)
+homework4DF %>% filter(population > 50000000) %>% pull(`mortality rate`) %>% mean()
+homework4DF %>% filter(population < 10000000) %>% pull(`mortality rate`) %>% mean()
+```
+
+####Deliverable 6
+
+```{r}
+breaks <- quantile(homework4DF$`mortality rate`,probs = seq(0,1,0.125))
+breaks[1] <- 0
+breakcuts <- cut(homework4DF$`mortality rate`,breaks)
+table(breakcuts)
+breaks
+```
+
+####Deliverable 7
+
+```{r}
+library(RColorBrewer)
+#display.brewer.all()
+mortalitycolors <- brewer.pal(8,'YlOrRd')
+
+```
+
+```{r}
+install.packages('maps', repos = "http://cran.us.r-project.org")
+```
+
+```{r}
+breakcolorsDF <- data.frame(table(breakcuts),mortalitycolors)
+```
+
+```{r}
+"library(maps)
+afghancolor <- breakcolorsDF[breakcolorsDF$breakcuts == breakcuts[41],]$mortalitycolors
+afghancolor <- as.character(afghancolor)
+map(world, fill = TRUE, col = grey)
+symbols(homework4DF$Longitude..average.[41],homework4DF$Latitude..average.[41],circles=0.0005*sqrt(homework4DF$population[41]),add=TRUE,inches = FALSE,fg=afghancolor,bg=afghancolor)
+"
+```
+
+```{r}
+map("world", fill = TRUE, col = "grey")
+for (i in 1:length(breakcuts)){
+  color <- breakcolorsDF[breakcolorsDF$breakcuts == breakcuts[i],]$mortalitycolors
+  color <- as.character(color)
+  symbols(homework4DF$Longitude..average.[i],homework4DF$Latitude..average.[i],circles=4,add=TRUE,inches = FALSE,fg=color,bg=color)
+}
+```
+
+####Deliverable 8
+
+```{r}
+map("world", fill = TRUE, col = "grey")
+for (i in 1:length(breakcuts)){
+  color <- breakcolorsDF[breakcolorsDF$breakcuts == breakcuts[i],]$mortalitycolors
+  color <- as.character(color)
+  radius <- 0.0005*sqrt(homework4DF$population[i])
+  if (radius < 2){
+    radius <- 2
+  }
+  symbols(homework4DF$Longitude..average.[i],homework4DF$Latitude..average.[i],circles=radius,add=TRUE,inches = FALSE,fg=color,bg=color)
+}
+```
