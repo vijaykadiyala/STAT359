@@ -105,6 +105,106 @@ homework4DF <- homework4DF[c(7,2,8,9,10,5,6)]
 
 ```
 
+##Homework 7
+
+
+```{r}
+xmatrix <- as.matrix(homework4DF[5:7])
+xmatrix <- scale(xmatrix)
+xmatrix <- unname(xmatrix)
+```
+
+```{r}
+centroid1 <- xmatrix[sample(1:nrow(xmatrix), 3, replace=FALSE),][1,]
+centroid2 <- xmatrix[sample(1:nrow(xmatrix), 3, replace=FALSE),][2,]
+centroid3 <- xmatrix[sample(1:nrow(xmatrix), 3, replace=FALSE),][3,]
+```
+
+
+```{r}
+outputvector <- NULL
+for(i in 1:nrow(xmatrix)){
+  distance1 <- sqrt(sum((xmatrix[i,]-centroid1)^2))
+  distance2 <- sqrt(sum((xmatrix[i,]-centroid2)^2))
+  distance3 <- sqrt(sum((xmatrix[i,]-centroid3)^2))
+  if (min(distance1,distance2,distance3) == distance1){
+    outputvector <- append(outputvector,1)
+  }
+  if (min(distance1,distance2,distance3) == distance2){
+    outputvector <- append(outputvector,2)
+  }
+  if (min(distance1,distance2,distance3) == distance3){
+    outputvector <- append(outputvector,3)
+  }
+ 
+}
+length(outputvector)
+nrow(xmatrix)
+```
+
+```{r}
+#Centroider subfunction: calculates centroids from X and output vector
+
+centroider <- function(matrix,vector,k){
+  centroids <- vector("list", length = k)
+  for (i in 1:length(centroids)){
+    group <- matrix[which(vector == i),]
+    centroidvec <- NULL
+    for (col in 1:ncol(group)){
+      centroidvec <- append(centroidvec,mean(group[,col]))
+    }
+    centroids[[i]] <- centroidvec
+    }
+  return(centroids)
+}
+examplecentroids <- centroider(xmatrix,outputvector,k=3)
+```
+
+
+```{r}
+#vectorizer subfunction: creates grouping vector given centroids
+vectorizer <- function(matrix,centroidlist){
+  finalvec <- NULL
+  for (i in 1:nrow(matrix)){
+    distancevec <- NULL
+    for (centroid in centroidlist){
+      distancevec <- append(distancevec,sqrt(sum((matrix[i,]-centroid)^2)))
+    }
+    finalvec <- append(finalvec,which(distancevec == min(distancevec)))
+  }
+  return(finalvec)
+}
+vectorizer(xmatrix,examplecentroids)
+```
+
+```{r}
+#firstcentroid subfunction: randomly selects three points as initial centroids
+firstcentroid <- function(matrix,k){
+  centroids <- vector("list", length = k)
+  sample <- matrix[sample(1:nrow(xmatrix), k, replace=FALSE),]
+  for (i in 1:length(centroids)){
+    centroids[[i]] <- sample[i,]
+  }
+  return(centroids)
+}
+firstcentroid(xmatrix,4)
+```
+
+```{r}
+initialcentroid <- firstcentroid(xmatrix,3)
+oldvec <- vectorizer(xmatrix,initialcentroid)
+repeat{
+  centroidfirst <- centroider(xmatrix,oldvec,k=3)
+  newvec <- vectorizer(xmatrix,centroidfirst)
+  if(newvec == oldvec){
+    print(newvec)
+    break()
+  }
+  oldvec <- newvec
+  newvec <- NULL
+}
+```
+
 
 #Deliverables
 
@@ -212,4 +312,19 @@ for (i in 1:length(breakcuts)){
   }
   symbols(homework4DF$Longitude..average.[i],homework4DF$Latitude..average.[i],circles=radius,add=TRUE,inches = FALSE,fg=color,bg=color)
 }
+```
+
+
+```{r}
+i<-1
+
+repeat{
+
+    print(i)
+
+    if( i == 15) break
+
+    i<-i+1
+
+           }
 ```
