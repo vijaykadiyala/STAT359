@@ -191,9 +191,10 @@ firstcentroid(xmatrix,4)
 ```
 
 ```{r}
+
 initialcentroid <- firstcentroid(xmatrix,3)
 oldvec <- vectorizer(xmatrix,initialcentroid)
-repeat{
+suppressWarnings(repeat{
   centroidfirst <- centroider(xmatrix,oldvec,k=3)
   newvec <- vectorizer(xmatrix,centroidfirst)
   if(newvec == oldvec){
@@ -202,9 +203,33 @@ repeat{
   }
   oldvec <- newvec
   newvec <- NULL
-}
+})
+
 ```
 
+```{r}
+#final kmeans function: does kmeans clustering
+kmeans <- function(matrix,k){
+  matrix <- scale(matrix)
+  matrix <- unname(matrix)
+  initialcentroid <- firstcentroid(matrix=matrix,k=k)
+  oldvec <- vectorizer(matrix=matrix,initialcentroid)
+  suppressWarnings(
+    repeat{
+      centroid <- centroider(matrix,oldvec,k=k)
+      newvec <- vectorizer(matrix,centroid)
+      if(newvec == oldvec){
+        return(newvec)
+        break()
+      }
+      oldvec <- newvec
+      newvec <- NULL
+    }
+  )
+}
+testmatrix <- as.matrix(homework4DF[5:7]) 
+kmeans(testmatrix,k=6)
+```
 
 #Deliverables
 
