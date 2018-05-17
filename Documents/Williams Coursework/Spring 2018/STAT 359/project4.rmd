@@ -1,0 +1,478 @@
+---
+title: "Project 4"
+author: "Vijay Kadiyala"
+output: pdf_document
+---
+
+```{r}
+directory <- list.files("messages")
+directory
+```
+
+
+#Homework
+
+##Homework 1
+
+```{r}
+#This is a sample email for example purposes
+easyhamfiles <- list.files("messages/easy_ham", full.names = TRUE)
+hardhamfiles <- list.files("messages/hard_ham",full.names=TRUE)
+ham3 <- readLines(easyhamfiles[3])
+ham69 <- readLines(easyhamfiles[69])
+ham424 <- readLines(easyhamfiles[424])
+ham77 <- readLines(easyhamfiles[77])
+ham4 <- readLines(easyhamfiles[4])
+hardham40 <- readLines(hardhamfiles[40])
+hardham270 <- readLines(hardhamfiles[270])
+```
+
+```{r}
+#Spamfiles 
+spamfiles <- list.files("messages/spam", full.names = TRUE)
+```
+
+
+```{r}
+splitMessage <- function(email){
+  blanks <- email == ""
+  bodysplit <- min(which(blanks == TRUE))
+  header <- email[1:(bodysplit-1)]
+  body <- email[(bodysplit+1):length(email)]
+  outputlist <- list(header,body)
+  names(outputlist) <- c("header","body")
+  return(outputlist)
+}
+ham3split <- splitMessage(ham3)
+ham69split <- splitMessage(ham69)
+ham424split <- splitMessage(ham424)
+ham77split <- splitMessage(ham77)
+ham4split <- splitMessage(ham4)
+hardham270split <- splitMessage(hardham40)
+```
+
+##Homework 2
+
+```{r}
+splitMessage(readLines(spamfiles[4]))$body
+```
+
+```{r}
+hasAttachment <- function(header){
+  contentlocations <- grepl("Content-Type",header)
+  if ((TRUE %in% grepl("Content-Type",ham3split$header)) == FALSE){
+    return(FALSE)
+  }
+  content_type_line <- header[min(which(contentlocations == TRUE))]
+  content_type_line <- tolower(content_type_line)
+  return(grepl("multipart",content_type_line))
+}
+#hasAttachment(ham77split$header)
+hasAttachment(splitMessage(readLines(spamfiles[900]))$header)
+hasAttachment(hardham40split$header)
+```
+
+
+```{r}
+#content_line <- ham424split$header[grepl("boundary=",ham424split$header,ignore.case = TRUE)]
+#strsplit(content_line,'=')
+ham424boundary <- grep("boundary=",ham424split$header,value=TRUE,ignore.case = TRUE)
+```
+
+
+
+```{r}
+getBoundary <- function(header){
+  boundary <- grep("boundary=",header,value=TRUE,ignore.case=TRUE)
+  boundaryname <- strsplit(boundary,"boundary=")[[1]][2]
+  boundaryname <- noquote(boundaryname)
+  boundaryname <- gsub(';','',boundaryname)
+  boundaryname <- gsub(' ','',boundaryname)
+  boundaryname <- gsub('\"','',boundaryname)
+  return(boundaryname)
+}
+#splitMessage(readLines(spamfiles[900]))$header
+#getBoundary(hardham40split$header)
+```
+
+
+
+```{r}
+extractBodyText <- function(email){
+  #email <- readLines(email)
+  emailheader <- splitMessage(email=email)$header
+  emailbody <- splitMessage(email=email)$body
+  if (hasAttachment(emailheader) == FALSE){
+    return(splitMessage(email=email)$body)
+  }
+  if (hasAttachment(emailheader)){
+    boundary <- getBoundary(emailheader)
+    boundarymatches <- grep(boundary,emailbody,fixed=TRUE)
+    if (length(boundarymatches)==1){
+      return(emailbody[(boundarymatches[1]+1):length(emailbody)])
+    }
+    if (length(boundarymatches) > 1){
+      return(emailbody[(boundarymatches[1]+1):(boundarymatches[2]-1)])
+    }
+  }
+  return(0)
+}
+```
+
+
+
+####extractWords
+
+```{r}
+extractWords <- function(emailbody){
+  uniquewords <- c()
+  for (i in emailbody){
+    linei <- deparse(i)
+    linei <- tolower(linei)
+    linei <- gsub('[[:punct:]]',' ',linei)
+    linei <- gsub('[0-9]','',linei)
+    linei <- gsub('\\b[A-z]{1}\\b','',linei)
+    words <- lapply(strsplit(linei, " "), unique)[[1]] 
+    uniquewords <- append(uniquewords,words)
+    uniquewords <- uniquewords[uniquewords != ""]
+  }
+  return(unique(uniquewords))
+}
+#extractWords(extractBodyText(ham424))
+extractWords(extractBodyText(readLines(spamfiles[900])))
+#extractWords(extractBodyText(hardham40))
+```
+
+####readEmailDirectory
+
+```{r}
+readEmailDirectory <- function(emailpath){
+  returnlist <- list()
+  emailfiles <- list.files(emailpath, full.names = TRUE)
+  for (i in 1:length(emailfiles)){
+    returnlist[[i]] <- readLines(emailfiles[i])
+  }
+  return(returnlist)
+}
+chubba <- head(readEmailDirectory("messages/hard_ham"))
+```
+
+####emailsAll
+
+```{r,message=FALSE,warning=FALSE}
+#creating emailsAll
+hooba <- readEmailDirectory("messages/easy_ham")
+hooba <- lapply(hooba, function(x) extractWords(extractBodyText(x)))
+hooba2 <- readEmailDirectory("messages/hard_ham")
+hooba2[[270]] <- NULL
+hooba2 <- lapply(hooba2, function(x) extractWords(extractBodyText(x)))
+hoobaeasyham2 <- readEmailDirectory("messages/easy_ham_2")
+hoobaeasyham2 <- lapply(hoobaeasyham2, function(x) extractWords(extractBodyText(x)))
+hoobaspam <- readEmailDirectory("messages/spam")
+hoobaspam <- lapply(hoobaspam, function(x) extractWords(extractBodyText(x)))
+hoobaspam2 <- readEmailDirectory("messages/spam_2")
+hoobaspam2 <- lapply(hoobaspam2, function(x) extractWords(extractBodyText(x)))
+```
+
+```{r,warning=FALSE}
+#complete emailsAll
+#emailsAll[1:5050] is easy ham words
+#emailsAll [5051:6450] is easy ham 2
+#emailsAll[6451:6950] is hard ham
+emailsAll <- c(hooba,hoobaeasyham2,hooba2,hoobaspam,hoobaspam2)
+```
+
+
+####isSpam
+
+```{r}
+isSpam <- c()
+isSpam <- rep(FALSE,6950)
+isSpam <- c(isSpam,rep(TRUE,2397))
+length(isSpam)
+```
+
+##Lecture 6
+
+```{r}
+#emailsTrain
+emailsTrain <- emailsAll[1:4674] #ham emails
+emailsTrain <- c(emailsTrain,emailsAll[6951:8508]) #spam emails
+
+
+#isSpamTrain
+isSpamTrain <- rep(FALSE,4674)
+isSpamTrain <- c(isSpamTrain,rep(TRUE,1558))
+```
+
+```{r}
+#emailsTest
+emailsTest <- emailsAll[4614:6949] #ham emails
+emailsTest <- c(emailsTest,emailsAll[8509:9287]) #spam emails
+
+#isSpamTest
+isSpamTest <- rep(FALSE, 2336)
+isSpamTest <- c(isSpamTest,rep(TRUE,779))
+```
+
+####bag of words
+
+```{r}
+bow<-c()
+for (i in 1:length(emailsTrain)){
+  bow <- append(bow,emailsTrain[[i]])
+  bow <- unique(bow)
+}
+```
+
+##Lecture 7
+
+```{R}
+hamguys <- unlist(emailsTrain[1:4674])
+spamguys <- unlist(emailsTrain[6951:8508])
+wordsInham <- table(hamguys)
+wordsInspam <- table(spamguys)
+hamvector <- numeric(length(bow))
+spamvector <- numeric(length(bow))
+names(hamvector) <- bow
+names(spamvector) <- bow
+hamvector[names(wordsInham)] <- wordsInham
+spamvector[names(wordsInspam)] <- wordsInspam
+PresentHam <- ((hamvector+0.1)/4674.1)
+PresentSpam <- (spamvector+0.1)/1558.1
+AbsentHam <- 1-PresentHam
+AbsentSpam <- 1-PresentSpam
+logAbsentHam <- log(AbsentHam) #done
+logAbsentSpam <- log(AbsentSpam)
+logPresentHam <- log(PresentHam) #done
+logPresentSpam <- log(PresentSpam)
+```
+
+
+
+
+probpresentham <- (table(unlist(emailsTrain)[1:4674])+0.1)/4674.1
+logProbPresentHam <- log(probpresentham)
+logProbAbsentHam <- log(1-probpresentham)
+probpresentspam <- (table(unlist(emailsTrain)[6951:8508])+0.1)/1558.1
+logProbPresentSpam <- log(probpresentspam)
+logProbAbsentSpam <- log(1-probpresentspam)
+logProbPresentHam[1]+logProbPresentHam[2]
+
+
+##Lecture 8
+
+
+```{r}
+#computeBF
+computeBF <- function(emailwords){
+  emailwords <- emailwords[emailwords%in%bow] #Got rid of words not in bow
+  sumpresentspam <- 0
+  sumabsentspam <- 0
+  sumpresentham <- 0
+  sumabsentham <- 0
+  for (i in emailwords){
+    presentspam <- logPresentSpam[names(logPresentSpam) == i]
+    sumpresentspam <- sumpresentspam + presentspam
+    absentspam <- logAbsentSpam[names(logAbsentSpam) == i]
+    sumabsentspam <- sumabsentspam + absentspam
+    presentham <- logPresentHam[names(logPresentHam) == i]
+    sumpresentham <- sumpresentham + presentham
+    absentham <- logAbsentHam[names(logAbsentHam) == i]
+    sumabsentham <- sumabsentham + absentham
+  }
+  bf <- (sumpresentspam + sumabsentspam - sumpresentham - sumabsentham)
+  bf <- unname(bf)
+  return(bf)
+}
+system.time(computeBF(emailsAll[[900]]))
+```
+
+```{R,warning=FALSE}
+#computeBF2 : New approach
+computeBF2 <- function(emailwords){
+  emailwords <- emailwords[emailwords%in%bow] #Got rid of words not in bow
+  sumpresentspam <- sum(logPresentSpam[names(logPresentSpam) == emailwords])
+  sumpresentham <- sum(logPresentHam[names(logPresentHam) == emailwords])
+  bowWordsnotinEmail <- bow[bow != emailwords]
+  sumabsentspam <- sum(logAbsentSpam[names(logAbsentSpam) == bowWordsnotinEmail])
+  sumabsentham <- sum(logAbsentHam[names(logAbsentHam) == bowWordsnotinEmail])
+  bf <- (sumpresentspam+sumabsentspam-sumpresentham-sumabsentham)
+  return(bf)
+}
+system.time(computeBF2(emailsAll[[900]]))
+```
+
+##Lecture 9
+
+```{r}
+system.time(typeIBF <- sapply(emailsTest[1:2336], function(x) computeBF2(x)))
+```
+
+```{r,warning=FALSE}
+system.time(typeIIBF <- sapply(emailsTest[2337:3115], function(x) computeBF2(x)))
+```
+
+```{r}
+xers <- unique(typeIBF)
+yapple <- c()
+for (i in xers){
+  yapple <- append(yapple, (sum(typeIBF>i))/(2336*25))
+}
+xers2 <- unique(typeIIBF)
+yapple2 <- c()
+for (i in xers2){
+  yapple2 <- append(yapple2, (sum(typeIIBF<i))/(779*25))
+}
+
+```
+
+##Deliverable 9
+
+```{r}
+BFmatches <- c()
+for(i in 1:length(xers)){
+  if (xers[i] %in% xers2){
+    BFmatches <- append(BFmatches,xers[i])
+  }
+}
+for (i in BFmatches){
+  lowerboundyapple2 <- yapple2[which(xers2==i)]-0.0015
+  upperboundyapple2 <- yapple2[which(xers2==i)]+0.0015
+  if(yapple[which(xers==i)] >= lowerboundyapple2 & yapple[which(xers==i)] <= upperboundyapple2){
+    deliv9a <- i
+    deliv9b <- (yapple[which(xers==i)])
+  }
+}
+
+```
+
+##Deliverable 10
+
+```{r}
+type1errorsmall <- xers[which(yapple<0.001)]
+for (i in type1errorsmall){
+  if (i %in% xers2){
+    print(yapple2[which(xers2 == i)])
+  }
+}
+```
+
+
+#Deliverables
+
+##Deliverable 1
+
+```{r}
+sapply(directory, function(x) length(list.files(paste("messages/",x,sep=''))))
+```
+
+##Deliverable 2
+
+####a.
+
+```{r,warning=FALSE}
+hardhamfiles <- list.files("messages/hard_ham",full.names=TRUE)
+deliv2attachcounter <- 0
+for (i in 1:length(hardhamfiles)){
+  file <- readLines(hardhamfiles[i])
+  header <- splitMessage(file)$header
+  if (hasAttachment(header=header)){
+    deliv2attachcounter <- deliv2attachcounter+1
+  }
+  
+}
+print(deliv2attachcounter)
+```
+
+####b.
+
+```{r}
+hardham70 <- readLines(hardhamfiles[70])
+getBoundary(splitMessage(hardham70)$header)
+```
+
+##Deliverable 3
+```{r,warning=FALSE}
+easyham2files <- list.files("messages/easy_ham_2", full.names = TRUE)
+spam2files <- list.files("messages/spam_2", full.names = TRUE)
+easyhamlengths <- sapply(easyhamfiles, function(x) {sum(lengths(gregexpr("\\W+",extractBodyText(readLines(x)))))+1})
+spamlengths <-  sapply(spamfiles, function(x) {sum(lengths(gregexpr("\\W+",extractBodyText(readLines(x)))))+1})
+easyham2lengths <- sapply(easyham2files, function(x) {sum(lengths(gregexpr("\\W+",extractBodyText(readLines(x)))))+1})
+spam2lengths <- sapply(spam2files, function(x) {sum(lengths(gregexpr("\\W+",extractBodyText(readLines(x)))))+1})
+#body <- extractBodyText(readLines(easyhamfiles[25]))
+```
+
+```{r,warning=FALSE}
+hardhamlengths <- c()
+for (i in 1:269){
+  value <- sum(lengths(gregexpr("\\W+",extractBodyText(readLines(hardhamfiles[i])))))+1
+  hardhamlengths <- append(hardhamlengths,value)
+}
+for (i in 271:length(hardhamfiles)){
+  value <- sum(lengths(gregexpr("\\W+",extractBodyText(readLines(hardhamfiles[i])))))+1
+  hardhamlengths <- append(hardhamlengths,value)
+}
+```
+
+
+
+```{r}
+boxplot(log(easyhamlengths),log(easyham2lengths),log(hardhamlengths),log(spamlengths),log(spam2lengths), names= c("easy_ham","easy_ham_2","hard_ham","spam","spam_2"))
+```
+
+It seems that in general, the hard ham directory has the most number of words.
+
+##Deliverable 4
+
+```{r}
+hamwordcount <- c()
+for (i in 1:6950){
+  count <- length(emailsAll[[i]])
+  hamwordcount <- append(hamwordcount,count)
+}
+quantile(hamwordcount,0.99)
+hamwordcount <- hamwordcount[which(hamwordcount<1000)]
+```
+
+```{r}
+spamwordcount <- c()
+for (i in 6951:9347){
+  count <- length(emailsAll[[i]])
+  spamwordcount <- append(spamwordcount,count)
+}
+spamwordcount <- spamwordcount[which(spamwordcount<1000)]
+
+```
+
+```{r}
+hist(hamwordcount,freq = FALSE,xlim= c(0,1000),col=rgb(1,0,0,0.5),breaks=20,main="Word Count in Ham and Spam Emails", xlab= "Words")
+hist(spamwordcount,freq=FALSE,col=rgb(0,0,1,0.5),xlim= c(0,1000),add=TRUE,breaks=20)
+legend("topright",legend= c("ham","spam","both"),fill= c(rgb(1,0,0,0.5),rgb(0,0,1,0.5),"purple"))
+```
+
+##Deliverable 6
+
+a.
+
+```{r}
+unname((PresentHam[names(PresentHam) == "monday"])/(PresentSpam[names(PresentSpam) == "monday"]))
+```
+
+b.
+
+```{r}
+
+```
+
+##Deliverable 7
+
+```{r}
+boxplot(typeIBF,typeIIBF,names=c("Ham Emails","Spam Emails"),main="Bayes Factors for Ham and Spam Emails", ylab = "Bayes Factor")
+```
+
+##Deliverable 9
+
+```{r}
+yapple[yapple == yapple2]
+```
