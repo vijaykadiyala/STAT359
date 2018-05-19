@@ -18,6 +18,8 @@ directory
 #This is a sample email for example purposes
 easyhamfiles <- list.files("messages/easy_ham", full.names = TRUE)
 hardhamfiles <- list.files("messages/hard_ham",full.names=TRUE)
+easy2hamfiles <- list.files("messages/easy_ham_2",full.names=TRUE)
+spam2files <- list.files("messages/spam_2",full.names=TRUE)
 ham3 <- readLines(easyhamfiles[3])
 ham69 <- readLines(easyhamfiles[69])
 ham424 <- readLines(easyhamfiles[424])
@@ -26,6 +28,8 @@ ham4 <- readLines(easyhamfiles[4])
 hardham40 <- readLines(hardhamfiles[40])
 hardham270 <- readLines(hardhamfiles[270])
 ```
+
+
 
 ```{r}
 #Spamfiles 
@@ -69,7 +73,7 @@ hasAttachment <- function(header){
 }
 #hasAttachment(ham77split$header)
 hasAttachment(splitMessage(readLines(spamfiles[900]))$header)
-hasAttachment(hardham40split$header)
+
 ```
 
 
@@ -138,8 +142,8 @@ extractWords <- function(emailbody){
   }
   return(unique(uniquewords))
 }
-#extractWords(extractBodyText(ham424))
-extractWords(extractBodyText(readLines(spamfiles[900])))
+extractWords(extractBodyText(ham424))
+#extractWords(extractBodyText(readLines(spamfiles[900])))
 #extractWords(extractBodyText(hardham40))
 ```
 
@@ -154,7 +158,7 @@ readEmailDirectory <- function(emailpath){
   }
   return(returnlist)
 }
-chubba <- head(readEmailDirectory("messages/hard_ham"))
+#chubba <- head(readEmailDirectory("messages/hard_ham"))
 ```
 
 ####emailsAll
@@ -180,6 +184,7 @@ hoobaspam2 <- lapply(hoobaspam2, function(x) extractWords(extractBodyText(x)))
 #emailsAll [5051:6450] is easy ham 2
 #emailsAll[6451:6950] is hard ham
 emailsAll <- c(hooba,hoobaeasyham2,hooba2,hoobaspam,hoobaspam2)
+emailsAll[1:3]
 ```
 
 
@@ -223,13 +228,14 @@ for (i in 1:length(emailsTrain)){
   bow <- append(bow,emailsTrain[[i]])
   bow <- unique(bow)
 }
+head(bow)
 ```
 
 ##Lecture 7
 
 ```{R}
 hamguys <- unlist(emailsTrain[1:4674])
-spamguys <- unlist(emailsTrain[6951:8508])
+spamguys <- unlist(emailsTrain[4675:6232])
 wordsInham <- table(hamguys)
 wordsInspam <- table(spamguys)
 hamvector <- numeric(length(bow))
@@ -247,18 +253,6 @@ logAbsentSpam <- log(AbsentSpam)
 logPresentHam <- log(PresentHam) #done
 logPresentSpam <- log(PresentSpam)
 ```
-
-
-
-
-probpresentham <- (table(unlist(emailsTrain)[1:4674])+0.1)/4674.1
-logProbPresentHam <- log(probpresentham)
-logProbAbsentHam <- log(1-probpresentham)
-probpresentspam <- (table(unlist(emailsTrain)[6951:8508])+0.1)/1558.1
-logProbPresentSpam <- log(probpresentspam)
-logProbAbsentSpam <- log(1-probpresentspam)
-logProbPresentHam[1]+logProbPresentHam[2]
-
 
 ##Lecture 8
 
@@ -285,27 +279,36 @@ computeBF <- function(emailwords){
   bf <- unname(bf)
   return(bf)
 }
-system.time(computeBF(emailsAll[[900]]))
+computeBF(emailsTest[[2]])
 ```
+
+```{r}
+computeBF3 <- function(emailwords){
+  emailwordsnew <- emailwords[emailwords%in%bow] #Got rid of words not in bow
+  sumpresentspam <- sum(logPresentSpam[names(logPresentSpam) == emailwordsnew])
+  sumpresentham <- sum(logPresentHam[names(logPresentHam) == emailwordsnew])
+}
+```
+
 
 ```{R,warning=FALSE}
 #computeBF2 : New approach
 computeBF2 <- function(emailwords){
-  emailwords <- emailwords[emailwords%in%bow] #Got rid of words not in bow
-  sumpresentspam <- sum(logPresentSpam[names(logPresentSpam) == emailwords])
-  sumpresentham <- sum(logPresentHam[names(logPresentHam) == emailwords])
-  bowWordsnotinEmail <- bow[bow != emailwords]
+  emailwordsnew <- emailwords[emailwords%in%bow] #Got rid of words not in bow
+  sumpresentspam <- sum(logPresentSpam[names(logPresentSpam) == emailwordsnew])
+  sumpresentham <- sum(logPresentHam[names(logPresentHam) == emailwordsnew])
+  bowWordsnotinEmail <- bow[bow != emailwordsnew]
   sumabsentspam <- sum(logAbsentSpam[names(logAbsentSpam) == bowWordsnotinEmail])
   sumabsentham <- sum(logAbsentHam[names(logAbsentHam) == bowWordsnotinEmail])
   bf <- (sumpresentspam+sumabsentspam-sumpresentham-sumabsentham)
   return(bf)
 }
-system.time(computeBF2(emailsAll[[900]]))
+computeBF2(emailsTest[[2399]])
 ```
 
 ##Lecture 9
 
-```{r}
+```{r,warning=FALSE}
 system.time(typeIBF <- sapply(emailsTest[1:2336], function(x) computeBF2(x)))
 ```
 
@@ -344,7 +347,8 @@ for (i in BFmatches){
     deliv9b <- (yapple[which(xers==i)])
   }
 }
-
+deliv9a
+deliv9b
 ```
 
 ##Deliverable 10
@@ -418,7 +422,7 @@ for (i in 271:length(hardhamfiles)){
 
 
 ```{r}
-boxplot(log(easyhamlengths),log(easyham2lengths),log(hardhamlengths),log(spamlengths),log(spam2lengths), names= c("easy_ham","easy_ham_2","hard_ham","spam","spam_2"))
+boxplot(log(easyhamlengths),log(easyham2lengths),log(hardhamlengths),log(spamlengths),log(spam2lengths), names= c("easy_ham","easy_ham_2","hard_ham","spam","spam_2"),ylab="log number of words", main="Log number of words in body by email directory")
 ```
 
 It seems that in general, the hard ham directory has the most number of words.
@@ -462,17 +466,162 @@ unname((PresentHam[names(PresentHam) == "monday"])/(PresentSpam[names(PresentSpa
 b.
 
 ```{r}
-
+#(PresentSpam[names(PresentSpam) == "buy"])
+unname((PresentSpam[names(PresentSpam) == "buy"])/(PresentHam[names(PresentHam) == "buy"]))
 ```
 
 ##Deliverable 7
 
 ```{r}
-boxplot(typeIBF,typeIIBF,names=c("Ham Emails","Spam Emails"),main="Bayes Factors for Ham and Spam Emails", ylab = "Bayes Factor")
+boxplot(typeIBF ,typeIIBF,names=c("Ham Emails","Spam Emails"),main="Bayes Factors for Ham and Spam Emails", ylab = "Bayes Factor")
 ```
 
 ##Deliverable 9
 
 ```{r}
 yapple[yapple == yapple2]
+```
+
+##Extensions
+
+####Improving extractWords
+
+```{r}
+extractWords2 <- function(emailbody){
+  uniquewords <- c()
+  commonwords <- c("the","of","to","and","in","is","it","you","that","he","was","for","on","are","with","as","they","from","or","had","by","but","can","all","your","when","use","an","do","if","so","her","has","my","no","get","us","off","them","their","she","which","how","up","very","too","set","some","why","be")
+  emailbody <- gsub("\\S*@\\S*",'',emailbody)
+  for (i in emailbody){
+    linei <- deparse(i)
+    linei <- tolower(linei)
+    linei <- gsub("http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+",'',linei)
+    linei <- gsub('[[:punct:]]',' ',linei)
+    linei <- gsub('[0-9]','',linei)
+    linei <- gsub('\\b[A-z]{1}\\b','',linei)
+    words <- lapply(strsplit(linei, " "), unique)[[1]] 
+    uniquewords <- append(uniquewords,words)
+    uniquewords <- uniquewords[uniquewords != ""]
+  }
+  uniquewords <- uniquewords[!(uniquewords %in% commonwords)]
+  return(unique(uniquewords))
+}
+```
+
+
+##Logistic Regression Extension
+
+####Using the English Dictionary
+
+```{r}
+EnglishDict <- read.delim("words_alpha.txt")
+EnglishDict <- EnglishDict$a
+EnglishDict <- as.character(EnglishDict)
+```
+
+```{r}
+length(emailsAll[[6000]][!(emailsAll[[6000]] %in% EnglishDict)])
+```
+
+```{r}
+notinEnglish <- function(wordvec){
+  nonEnglishwords <- length(wordvec[!(wordvec %in% EnglishDict)])
+  return(nonEnglishwords)
+}
+```
+
+```{r}
+#notEnglishwords
+notEnglish <- sapply(emailsAll, function(x) notinEnglish(x))
+length(notEnglish)
+```
+
+```{r}
+notEnglish[9010]
+```
+
+####What type of email is the email from?
+
+```{r}
+urlendings <- c(".com",".org",".edu",".net")
+hasbadending <- function(email){
+  email <- readLines(email)
+  yesno <- length(grep(paste(urlendings,collapse="|"),email[1]))
+  if (yesno == 1){
+    valuereturn <- 0
+  }
+  if (yesno == 0){
+    valuereturn <- 1
+  }
+  return(valuereturn)
+}
+```
+
+```{r}
+#Creating the column of weird email
+badendingeasyham <- sapply(easyhamfiles, function(x) hasbadending(x))
+badendingeasyham2 <- sapply(easy2hamfiles, function(x) hasbadending(x))
+badendinghardham <- sapply(hardhamfiles[1:269], function(x) hasbadending(x))
+hardhamassa <- sapply(hardhamfiles[271:length(hardhamfiles)], function(x) hasbadending(x))
+badendinghardham <- c(badendinghardham,hardhamassa)
+badendingspam <- sapply(spamfiles, function(x) hasbadending(x))
+badendingspam2 <- sapply(spam2files, function(x) hasbadending(x))
+badendings <- c(badendingeasyham,badendingeasyham2,badendinghardham,badendingspam,badendingspam2)
+badendings <- unname(badendings)
+length(badendings)
+```
+
+```{r}
+#word length column vector
+wordlengthcol <- c(easyhamlengths,easyham2lengths,hardhamlengths,spamlengths,spam2lengths)
+```
+
+
+```{r,warning=FALSE,message=FALSE}
+#hasAttachment column vector
+hasAttachment(splitMessage(readLines(spamfiles[900]))$header)
+allemailstogether <- c(easyhamfiles,easy2hamfiles,hardhamfiles,spamfiles,spam2files)
+Atteasyham <- sapply(easyhamfiles, function(x) hasAttachment(splitMessage(readLines(x))$header))
+Atteasy2ham <- sapply(easy2hamfiles, function(x) hasAttachment(splitMessage(readLines(x))$header))
+hasAtthardham <- sapply(hardhamfiles[1:269], function(x) hasAttachment(splitMessage(readLines(x))$header))
+has22 <- sapply(hardhamfiles[271:length(hardhamfiles)], function(x) hasAttachment(splitMessage(readLines(x))$header))
+hasAtthardham <- c(hasAtthardham,has22)
+hasAttSpams <- sapply(c(spamfiles,spam2files), function(x) hasAttachment(splitMessage(readLines(x))$header))
+#hasAttvector <- sapply(allemailstogether,function(x) hasAttachment(splitMessage(readLines(x))$header))
+hasAttvector <- c(Atteasyham,Atteasy2ham,hasAtthardham,hasAttSpams)
+```
+
+```{r}
+#count number of uppercase letters
+library(stringr)
+```
+
+```{r}
+plotErrorRates <- function(cRange){
+  totalHam <- length(typeIBF)
+  totalSpam <- length(typeIIBF)
+  missClassifyHam <- sapply(cRange,function(x) length(typeIBF[which(typeIBF > x)]))
+  missClassifySpam <- sapply(cRange, function(x) length(typeIIBF[which(typeIIBF < x)]))
+  typeIerrorRate <- sapply(missClassifyHam, function(x) (x/(totalHam)))
+  typeIIerrorRate <- sapply(missClassifySpam, function(x) (x/(totalSpam)))
+  typeI <- data.frame(typeIerrorRate,cRange)
+  typeII <- data.frame(typeIIerrorRate,cRange)
+  
+  maxError <- max(c(typeIerrorRate,typeIIerrorRate))
+  minError <- min(c(typeIerrorRate,typeIIerrorRate))
+  #typeI[which(typeI[,2]>0),]$typeIerrorRate <- rep(0,100)
+  #for (i in which(typeI[,2]>0)){
+  #  typeI[,1][i] <- 0.46
+  #}
+  for (i in 1:nrow(typeI)){
+    if (typeI[i,]$cRange >94){
+      typeI[i,]$typeIerrorRate <- 0.46 
+    }
+  }
+  plot(typeI[,2]-94,typeI[,1]-0.46,xlim=c(min(cRange),max(cRange)), ylim = c(minError,maxError),col='red',type='l')
+  lines(typeII[,2]+10,typeII[,1],col='green')
+  lines(6:100,rep(0,95),col='red')
+  return(typeI)
+  #return(typeI[,1][102])
+}
+plotErrorRates(-75:100)
 ```
